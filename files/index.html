@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Vice Streets 3D — Neon City</title>
+<style>
+  html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:'Segoe UI',Arial,sans-serif; user-select:none; }
+  canvas { display:block; }
+  #hud { position:fixed; inset:0; pointer-events:none; color:#fff; text-shadow:0 0 6px #000; }
+  .panel { background:rgba(10,0,20,0.55); border:1px solid #ff2da8; border-radius:8px; padding:8px 14px; box-shadow:0 0 12px rgba(255,45,168,0.5); }
+  #topbar { position:absolute; top:12px; left:12px; right:12px; display:flex; justify-content:space-between; }
+  #stars { letter-spacing:3px; font-size:16px; color:#ffe34d; }
+  #healthBarWrap { width:160px; height:12px; background:#220033; border:1px solid #00eaff; border-radius:6px; overflow:hidden; margin-top:4px;}
+  #healthBar { height:100%; width:100%; background:linear-gradient(90deg,#ff2da8,#00eaff); }
+  #moneyLine { color:#4dff8f; font-weight:bold; }
+  #clock { color:#00eaff; font-weight:bold; }
+  #weaponBar { position:absolute; bottom:14px; left:14px; display:flex; gap:8px; }
+  .wslot { padding:8px 12px; border:1px solid #555; border-radius:6px; background:rgba(0,0,0,0.5); color:#aaa; font-size:13px; }
+  .wslot.active { border-color:#00eaff; color:#fff; box-shadow:0 0 10px #00eaff; }
+  #camInfo { position:absolute; bottom:14px; right:14px; }
+  #crosshair { position:absolute; top:50%; left:50%; width:18px; height:18px; transform:translate(-50%,-50%); pointer-events:none; }
+  #crosshair::before, #crosshair::after { content:''; position:absolute; background:#00eaff; box-shadow:0 0 6px #00eaff; }
+  #crosshair::before { left:50%; top:0; width:2px; height:100%; transform:translateX(-1px); }
+  #crosshair::after { top:50%; left:0; height:2px; width:100%; transform:translateY(-1px); }
+  #centerMsg { position:absolute; top:42%; left:50%; transform:translate(-50%,-50%); color:#ff2da8; font-size:38px; font-weight:900; letter-spacing:4px; text-shadow:0 0 20px #00eaff; opacity:0; transition:opacity .5s; text-align:center; }
+  #banner { position:absolute; top:80px; left:50%; transform:translateX(-50%); color:#00eaff; font-size:18px; font-weight:bold; text-shadow:0 0 10px #ff2da8; opacity:0; transition:opacity .4s; text-align:center; }
+  #helpText { position:absolute; bottom:60px; left:14px; font-size:12px; color:#ccc; line-height:1.5; }
+  #interactPrompt { position:absolute; bottom:120px; left:50%; transform:translateX(-50%); color:#fff; background:rgba(0,0,0,0.6); border:1px solid #00eaff; border-radius:6px; padding:6px 14px; font-size:14px; opacity:0; transition:opacity .2s; }
+
+  #startScreen { position:fixed; inset:0; background:radial-gradient(circle at center,#2a004f,#0a0014 75%); display:flex; align-items:center; justify-content:center; flex-direction:column; color:#fff; z-index:20; }
+  #startScreen h1 { font-size:58px; color:#ff2da8; text-shadow:0 0 25px #00eaff,0 0 5px #fff; letter-spacing:6px; margin-bottom:4px; }
+  #startScreen h2 { color:#00eaff; letter-spacing:4px; margin-top:0; font-weight:400; }
+  #startScreen p { max-width:560px; text-align:center; line-height:1.5; color:#ddd; }
+  #startBtn { margin-top:20px; padding:14px 36px; font-size:20px; font-weight:bold; background:linear-gradient(90deg,#ff2da8,#00eaff); border:none; border-radius:30px; color:#0a0014; cursor:pointer; letter-spacing:2px; box-shadow:0 0 20px rgba(255,45,168,0.7); }
+  .controls { margin-top:16px; font-size:13px; color:#aaa; text-align:center; max-width:560px; }
+
+  /* Closet / customization menu */
+  #closetMenu { position:fixed; inset:0; background:rgba(5,0,15,0.85); display:none; align-items:center; justify-content:center; z-index:30; }
+  #closetBox { background:rgba(20,0,35,0.9); border:1px solid #ff2da8; border-radius:12px; padding:24px 30px; color:#fff; box-shadow:0 0 30px #ff2da8; width:420px; }
+  #closetBox h2 { color:#00eaff; margin-top:0; text-align:center; letter-spacing:2px; }
+  .swatchRow { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .swatchLabel { font-size:13px; color:#ff9adf; margin-bottom:6px; }
+  .swatch { width:34px; height:34px; border-radius:6px; cursor:pointer; border:2px solid #444; }
+  .swatch.selected { border-color:#00eaff; box-shadow:0 0 8px #00eaff; }
+  #closeCloset { margin-top:10px; width:100%; padding:10px; background:linear-gradient(90deg,#ff2da8,#00eaff); border:none; border-radius:20px; font-weight:bold; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div id="startScreen">
+  <h1>VICE STREETS</h1>
+  <h2>NEON CITY — 3D</h2>
+  <p>An original open-world action game in a neon-soaked coastal city. Spawn at your hillside home, grab a gun, and hit the streets.</p>
+  <button id="startBtn">START GAME</button>
+  <div class="controls">
+    WASD: Move/Drive/Fly &nbsp;|&nbsp; Shift: Sprint/Throttle &nbsp;|&nbsp; Mouse: Look &nbsp;|&nbsp; Click: Shoot &nbsp;|&nbsp;
+    V: Cycle Camera &nbsp;|&nbsp; 1/2/3: Switch Gun &nbsp;|&nbsp; T: Toggle Day/Night &nbsp;|&nbsp; H: Go Home &nbsp;|&nbsp; C: Closet &nbsp;|&nbsp; E: Enter/Hijack Vehicle &nbsp;|&nbsp; Space/Ctrl: Altitude (aircraft)<br>
+    Fly to the airport in the hills beyond the city to board planes and helicopters.
+  </div>
+</div>
+
+<div id="closetMenu">
+  <div id="closetBox">
+    <h2>CLOSET</h2>
+    <div class="swatchLabel">Shirt Color</div>
+    <div class="swatchRow" id="shirtSwatches"></div>
+    <div class="swatchLabel">Pants Color</div>
+    <div class="swatchRow" id="pantsSwatches"></div>
+    <div class="swatchLabel">Skin Tone</div>
+    <div class="swatchRow" id="skinSwatches"></div>
+    <button id="closeCloset">DONE</button>
+  </div>
+</div>
+
+<div id="hud">
+  <div id="topbar">
+    <div class="panel">
+      <div id="stars">WANTED: ☆☆☆☆☆</div>
+      <div id="healthBarWrap"><div id="healthBar"></div></div>
+    </div>
+    <div class="panel" id="clock">06:00</div>
+    <div class="panel" id="moneyLine">$0</div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="centerMsg"></div>
+  <div id="banner"></div>
+  <div id="weaponBar">
+    <div class="wslot" id="slotGlock">1. Glock</div>
+    <div class="wslot" id="slotSMG">2. SMG</div>
+    <div class="wslot" id="slotAK">3. AK-47</div>
+  </div>
+  <div id="camInfo" class="panel">Camera: 1st Person</div>
+  <div id="interactPrompt"></div>
+  <div id="helpText">V: camera • 1/2/3: weapon • T: day/night • H: home • C: closet • E: enter/exit vehicle, aircraft & front door • Shift: sprint</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
